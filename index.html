@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4D Tesseract</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        let centerX = canvas.width / 2;
+        let centerY = canvas.height / 2;
+        
+        // Create animated starfield with depth
+        const stars = [];
+        for (let i = 0; i < 400; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                z: Math.random(),
+                radius: Math.random() * 2,
+                opacity: Math.random() * 0.5 + 0.5,
+                twinkleSpeed: Math.random() * 0.02 + 0.01,
+                twinkleOffset: Math.random() * Math.PI * 2
+            });
+        }
+        
+        // Nebula particles
+        const nebula = [];
+        for (let i = 0; i < 50; i++) {
+            nebula.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                radius: Math.random() * 100 + 50,
+                hue: Math.random() * 60 + 200,
+                opacity: Math.random() * 0.1 + 0.05,
+                drift: {x: (Math.random() - 0.5) * 0.2, y: (Math.random() - 0.5) * 0.2}
+            });
+        }
+        
+        let time = 0;
+        
+        let angleXY = 0, angleZW = 0, angleXW = 0;
+        let speedXY = 0.01, speedZW = 0.005, speedXW = 0.003;
+        
+        // Define 16 vertices of a tesseract in 4D
+        const vertices4D = [];
+        for (let i = 0; i < 16; i++) {
+            vertices4D.push([
+                (i & 1) ? 1 : -1,
+                (i & 2) ? 1 : -1,
+                (i & 4) ? 1 : -1,
+                (i & 8) ? 1 : -1
+            ]);
+        }
+        
+        // Define edges (pairs of vertex indices)
+        const edges = [];
+        for (let i = 0; i < 16; i++) {
+            for (let j = i + 1; j < 16; j++) {
+                let diff = 0;
+                for (let k = 0; k < 4; k++) {
+                    if (vertices4D[i][k] !== vertices4D[j][k]) diff++;
+                }
+                if (diff === 1) edges.push([i, j]);
+            }
+        }
+        
+        function rotateXY(p, angle) {
+            const c = Math.cos(angle);
+            const s = Math.sin(angle);
+            return [
+                c * p[0] - s * p[1],
+                s * p[0] + c * p[1],
+                p[2],
+                p[3]
+            ];
+        }
+        
+        function rotateZW(p, angle) {
+            const c = Math.cos(angle);
+            const s = Math.sin(angle);
+            return [
+                p[0],
+                p[1],
+                c * p[2] - s * p[3],
+                s * p[2] + c * p[3]
+            ];
+        }
+        
+        function rotateXW(p, angle) {
+            const c = Math.cos(angle);
+            const s = Math.sin(angle);
+            return [
+                c * p[0] - s * p[3],
+                p[1],
+                p[2],
+                s * p[0] + c * p[3]
+            ];
+        }
+        
+        function project4Dto3D(p) {
+            const distance = 3;
+            const w = 1 / (distance - p[3]);
+            return [p[0] * w, p[1] * w, p[2] * w];
+        }
+        
+        function project3Dto2D(p) {
+            const scale = 250;
+            const distance = 5;
+            const z = 1 / (distance - p[2]);
+            return [
+                centerX + p[0] * scale * z,
+                centerY + p[1] * scale * z,
+                z
+            ];
+        }
+        
+        function draw() {
+            time += 0.01;
+            
+            // Animated deep space background with pulsing gradient
+            const pulseX = centerX + Math.sin(time * 0.3) * 100;
+            const pulseY = centerY + Math.cos(time * 0.2) * 100;
+            const gradient = ctx.createRadialGradient(pulseX, pulseY, 0, centerX, centerY, canvas.width);
+            
+            const hue1 = (time * 5) % 360;
+            const hue2 = (time * 3 + 120) % 360;
+            
+            gradient.addColorStop(0, `hsla(${hue1}, 40%, 8%, 1)`);
+            gradient.addColorStop(0.5, `hsla(${hue2}, 30%, 3%, 1)`);
+            gradient.addColorStop(1, '#000000');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw animated nebula with pulsing and rotation
+            nebula.forEach((n, idx) => {
+                n.x += n.drift.x;
+                n.y += n.drift.y;
+                
+                if (n.x < -n.radius) n.x = canvas.width + n.radius;
+                if (n.x > canvas.width + n.radius) n.x = -n.radius;
+                if (n.y < -n.radius) n.y = canvas.height + n.radius;
+                if (n.y > canvas.height + n.radius) n.y = -n.radius;
+                
+                // Pulsing effect
+                const pulse = Math.sin(time * 0.5 + idx) * 0.3 + 1;
+                const currentRadius = n.radius * pulse;
+                const currentOpacity = n.opacity * (0.8 + Math.sin(time * 0.3 + idx) * 0.2);
+                
+                // Animated hue shift
+                const animatedHue = (n.hue + time * 10) % 360;
+                
+                const nebulaGradient = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, currentRadius);
+                nebulaGradient.addColorStop(0, `hsla(${animatedHue}, 80%, 60%, ${currentOpacity})`);
+                nebulaGradient.addColorStop(0.5, `hsla(${animatedHue + 20}, 70%, 50%, ${currentOpacity * 0.5})`);
+                nebulaGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = nebulaGradient;
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, currentRadius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            // Draw twinkling and moving stars
+            stars.forEach((star, idx) => {
+                const twinkle = Math.sin(time * star.twinkleSpeed + star.twinkleOffset) * 0.5 + 0.5;
+                const size = star.radius * (0.5 + twinkle * 0.5);
+                const brightness = star.opacity * (0.6 + twinkle * 0.4);
+                
+                // Subtle star movement/parallax
+                const moveX = Math.sin(time * 0.1 + idx * 0.1) * 2;
+                const moveY = Math.cos(time * 0.15 + idx * 0.1) * 2;
+                
+                // Color variation
+                const colorShift = Math.sin(time * 0.2 + idx) * 30;
+                const hue = 200 + colorShift;
+                
+                ctx.shadowBlur = 5 + twinkle * 15;
+                ctx.shadowColor = `hsla(${hue}, 80%, 80%, ${brightness})`;
+                ctx.fillStyle = `hsla(${hue}, 60%, 90%, ${brightness})`;
+                ctx.beginPath();
+                ctx.arc(star.x + moveX, star.y + moveY, size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            ctx.shadowBlur = 0;
+            
+            angleXY += speedXY;
+            angleZW += speedZW;
+            angleXW += speedXW;
+            
+            // Transform all vertices
+            const projectedVertices = vertices4D.map(v => {
+                let p = rotateXY([...v], angleXY);
+                p = rotateZW(p, angleZW);
+                p = rotateXW(p, angleXW);
+                p = project4Dto3D(p);
+                return project3Dto2D(p);
+            });
+            
+            // Sort edges by average depth for proper rendering
+            const edgesWithDepth = edges.map(([i, j]) => ({
+                i, j,
+                depth: (projectedVertices[i][2] + projectedVertices[j][2]) / 2
+            }));
+            edgesWithDepth.sort((a, b) => a.depth - b.depth);
+            
+            // Draw edges with animated glow and energy flow
+            edgesWithDepth.forEach(({i, j, depth}, edgeIdx) => {
+                const v1 = projectedVertices[i];
+                const v2 = projectedVertices[j];
+                
+                const opacity = Math.max(0.3, Math.min(1, depth * 0.6 + 0.5));
+                const hue = (depth * 120 + 180 + time * 30) % 360;
+                
+                // Pulsing effect
+                const pulse = Math.sin(time * 2 + edgeIdx * 0.5) * 0.3 + 1;
+                
+                // Energy flow along edges
+                const flowPos = (time * 0.5 + edgeIdx * 0.3) % 1;
+                const flowX = v1[0] + (v2[0] - v1[0]) * flowPos;
+                const flowY = v1[1] + (v2[1] - v1[1]) * flowPos;
+                
+                // Outer glow with pulse
+                ctx.strokeStyle = `hsla(${hue}, 100%, 70%, ${opacity * 0.3 * pulse})`;
+                ctx.lineWidth = 8 * pulse;
+                ctx.shadowBlur = 20 * pulse;
+                ctx.shadowColor = `hsla(${hue}, 100%, 60%, ${opacity * 0.5})`;
+                ctx.beginPath();
+                ctx.moveTo(v1[0], v1[1]);
+                ctx.lineTo(v2[0], v2[1]);
+                ctx.stroke();
+                
+                // Inner line
+                ctx.strokeStyle = `hsla(${hue}, 100%, 80%, ${opacity})`;
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.moveTo(v1[0], v1[1]);
+                ctx.lineTo(v2[0], v2[1]);
+                ctx.stroke();
+                
+                // Energy particle flowing along edge
+                ctx.shadowBlur = 30;
+                ctx.shadowColor = `hsla(${hue + 60}, 100%, 80%, ${opacity})`;
+                ctx.fillStyle = `hsla(${hue + 60}, 100%, 90%, ${opacity})`;
+                ctx.beginPath();
+                ctx.arc(flowX, flowY, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            ctx.shadowBlur = 0;
+            
+            // Draw vertices with animated glow and pulse
+            projectedVertices.forEach((v, idx) => {
+                const opacity = Math.max(0.4, Math.min(1, v[2] * 0.6 + 0.6));
+                const baseSi = 4 + v[2] * 3;
+                const hue = (v[2] * 120 + 180 + time * 30) % 360;
+                
+                // Pulsing vertices
+                const pulse = Math.sin(time * 3 + idx * 0.5) * 0.3 + 1;
+                const size = baseSi * pulse;
+                
+                // Outer glow
+                ctx.shadowBlur = 20 * pulse;
+                ctx.shadowColor = `hsla(${hue}, 100%, 70%, ${opacity})`;
+                ctx.fillStyle = `hsla(${hue}, 100%, 90%, ${opacity})`;
+                ctx.beginPath();
+                ctx.arc(v[0], v[1], size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Inner bright core
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                ctx.beginPath();
+                ctx.arc(v[0], v[1], size * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            ctx.shadowBlur = 0;
+            
+            requestAnimationFrame(draw);
+        }
+        
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            centerX = canvas.width / 2;
+            centerY = canvas.height / 2;
+            
+            // Regenerate stars
+            stars.length = 0;
+            for (let i = 0; i < 400; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    z: Math.random(),
+                    radius: Math.random() * 2,
+                    opacity: Math.random() * 0.5 + 0.5,
+                    twinkleSpeed: Math.random() * 0.02 + 0.01,
+                    twinkleOffset: Math.random() * Math.PI * 2
+                });
+            }
+            
+            // Regenerate nebula
+            nebula.length = 0;
+            for (let i = 0; i < 50; i++) {
+                nebula.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    radius: Math.random() * 100 + 50,
+                    hue: Math.random() * 60 + 200,
+                    opacity: Math.random() * 0.1 + 0.05,
+                    drift: {x: (Math.random() - 0.5) * 0.2, y: (Math.random() - 0.5) * 0.2}
+                });
+            }
+        });
+        
+        draw();
+    </script>
+</body>
+</html>
