@@ -1,0 +1,84 @@
+/* Basic Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    background: black;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    perspective: 800px;
+}
+
+/* Scene container */
+.scene {
+    width: 200px;
+    height: 200px;
+    position: relative;
+    transform-style: preserve-3d;
+    animation: rotateScene 10s linear infinite;
+}
+
+/* Cube faces */
+.cube {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    transform-style: preserve-3d;
+}
+.cube.inner {
+    transform: scale(0.6);
+    animation: rotateScene 15s linear infinite reverse;
+}
+
+.face {
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    background: hsla(200, 80%, 60%, 0.3);
+    border: 1px solid white;
+}
+
+/* Cube face positions */
+.front  { transform: translateZ(100px); }
+.back   { transform: rotateY(180deg) translateZ(100px); }
+.right  { transform: rotateY(90deg) translateZ(100px); }
+.left   { transform: rotateY(-90deg) translateZ(100px); }
+.top    { transform: rotateX(90deg) translateZ(100px); }
+.bottom { transform: rotateX(-90deg) translateZ(100px); }
+
+/* Scene rotation animation */
+@keyframes rotateScene {
+    0%   { transform: rotateX(0deg) rotateY(0deg); }
+    50%  { transform: rotateX(180deg) rotateY(180deg); }
+    100% { transform: rotateX(360deg) rotateY(360deg); }
+}
+
+/* Stars background */
+.stars {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    box-shadow:
+        50px 100px white,
+        200px 150px white,
+        400px 300px white,
+        600px 400px white,
+        800px 500px white,
+        300px 200px white,
+        700px 100px white,
+        900px 350px white;
+    animation: twinkle 3s infinite alternate;
+}
+
+@keyframes twinkle {
+    0% { opacity: 0.3; }
+    50% { opacity: 1; }
+    100% { opacity: 0.3; }
+}
